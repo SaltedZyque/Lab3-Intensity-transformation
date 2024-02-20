@@ -1,15 +1,9 @@
-# Lab 3 - Intensity Transformation and Spatial Filtering
-*_Peter Cheung, version 1.0, 1 Feb 2024_*
 
-This lab session aims to demonstrate the topics covered in Lectures 4 and 5 using Matlab.  The choice of Matlab is driven by their excellent set of functions included in the Image Processing Toolbox.  As Design Engineers, it is more important for you to understand the principles and then use ready-made libraries to perform processing on visual data, than to write low-level code to implement the algorithms.
+# Lab 3 - Intensity Transformations
+## 1 - Contrast Enhancement with imadjust
 
-Clone this repo to your laptop and do all your work using your local copy.  Remember to keep a log of your work in your repo.
-
-## Task 1 - Contrast enhancement with function imadjust
-
-### Importing an image
-
-Check what is on image file *_breastXray.tif_* stored in the assets folder and read the image data into the matrix *_f_*, and display it:
+### Import
+Look at info of image and read image data into a matrix *f* 
 
 ```
 clear all
@@ -17,71 +11,80 @@ imfinfo('assets/breastXray.tif')
 f = imread('assets/breastXray.tif');
 imshow(f)
 ```
->Note: Use the semicolon to suppress output. Otherwise, all pixel values will be stream to your display and will take a long time. Use CTRL-C to interrupt.
 
-Check the dimension of _f_ on the right window pane of Matlab. Examine the image data stored:
+![|500](img/bXray.jpg)
 
-```
-f(3,10)             % print the intensity of pixel(3,10)
-imshow(f(1:241,:))  % display only top half of the image
-```
-Indices of 2D matrix in Matlab is of the format: (row, column).  You can use *_':'_* to *_slice_* the data.  *_(1:241 , : )_* means only rows 1 to 241 and all columns are used.  The default is the entire matrix.
+- *f* is stored as a `571x482 uint8`
+- Intensity of any pixel can be printed by `f(x,y)` 
+	- e.g. `f(3,10) = uint8 28`
+	- Intensity values should be between 0 - 255, as it is a `uint8`
+- Specific parts of an image can be created by slicing the matrix indices with `:` 
+	- `f(1:285,:)` uses all columns, and rows 1-285 (top half)
+	- `f(:, 241:482)` uses all rows, and columns 241-482 (right half)
+- Find max and min intensity values with `[fmin, fmax] = bounds(f(:))`
+	- Function used is **bounds()**
+	- note `f(:)` means check every column, if unspecified it will return max and min of each column (as 2 row vectors)
+	- Result: `[fmin, fmax] = [uint8 21, uint8 255]`
+		- Seems like the intensity of *f* uses most of the range of uint8
 
-To find the maximum and minimum intensity values of the image, do this:
-```
-[fmin, fmax] = bounds(f(:))
-```
-*_bounds_* returns the maximum and minimum values in the entire image f. The index ( : ) means every columns. If this is not specified, Matlab will return the max and min values for each column as 2 row vectors.
+![|300](img/bXray_h.jpg)  
+![|200](img/bXray_v.jpg)
 
-Since the data type for _f_ is _uint8_, the full intensity range is [0 255].  Is the intensity of _f_ close to the full range?
-
-**Test yourself**: Display the right half of the image. Capture it for your logbook.
-
-### Negative image
-
-To compute the negative image and display both the original and the negative image side-by-side, do this:
+### Negative Image
 
 ```
 g1 = imadjust(f, [0 1], [1 0])
 figure                          % open a new figure window
 imshowpair(f, g1, 'montage')
 ```
->The 2nd parameter of _imadjust_ is in the form of [low_in high_in], where the values are between 0 and 1.  [0 1] means that the input image is to be adjusted to within 1% of the bottom and top pixel values.  
 
->The 3rd parameter is also in the form of [low_out high_out]. It specifies how the input range is mapped to output range.  So, [1 0] means that the lowest pixel intensity of the input is now mapped to highest pixel intensity at the output and vice versa.  This of course means that all intensities are inverted, producing the negative image.  The same thing can be achieved using _function imcomplement_.
+The function **imadjust()** was used for this operation
+- Parameter 1: Takes in the target image `f`
+- Parameter 2: `[low_in, low_out]` (values are between 0 and 1) 
+	- `[0, 1]` takes the full range of values, and is same as default `[ ]`
+- Parameter 3: `[high_in, high_out]` 
+- Function thus maps the lowest intensity pixels (at 0) to highest intensity pixels (at 1), and vice versa
+- Intensities are thus inversed to make a negative image
 
-### Gamma correction
+Note that this can also be accomplished with function **imcomplement**
 
-Try this:
+![|400](img/bXray_inv.jpg)
+
+### Gamma Correction
+
 ```
 g2 = imadjust(f, [0.5 0.75], [0 1]);
 g3 = imadjust(f, [ ], [ ], 2);
 figure
 montage({g2,g3})
 ```
-_g2_ has the gray scale range between 0.5 and 0.75 mapped to the full range.
 
-_g3_ uses gamma correct with gamma = 2.0 as shown in the diagram below. [ ] is the same as [0 1] by default.
+- g2:  grayscale range between 0.5 and 0.75 mapped to the full range
+- g3:  gamma correct with $\gamma$ = 2.0 (see graph below) 
+	- `[ ]` is the same as `[0 1]` by default.]
+	- Produces a similar result to g2 by compressing low end and expanding high end
+	- But retains more information since the intensity covers the full greyscale range
+- **montage()** stitches the images in the list with `{}`
 
-<p align="center"> <img src="assets/gamma.jpg" /> </p><BR>
+![|250](assets/gamma.jpg)
 
-This produces a result similar to that of g2 by compressing the low end and expanding the high end of the gray scale.  It however, unlike g2,  retains more of the details because the intensity now covers the entire gray scale range.  _function montage_ stitches together images in the list specified within { }.
+![|400](img/bXray_gc.jpg)
 
-## Task 2: Contrast-stretching transformation
+---
+## 2 - Contrast-Stretching
 
-Instead of using the *_imadjust function_*, we will apply the constrast stretching transformation function in Lecture 4 slide 4 to improve the contrast of another X-ray image.  The transformation function is as shown here:
+Instead of imadjustm we can apply contrast stretching with the transformation function below:
 
-<p align="center"> <img src="assets/stretch.jpg" /> </p><BR>
+![|300](assets/stretch.jpg)
 
-The equation of this function is:
-
-$$s = T(r) = {1 \over 1 + (k/r)^E}$$
-
-where *_k_* is often set to the average intensity level and E determines steepness of the function. Note that the 
+The equation is 
+$$s = T(r) = {1 \over 1 + (k/r)^E}$$ 
+- $k$ is often set to average intensity level
+- $E$ determines steepness of the function
 
 ```
-clear all       % clear all variables
-close all       % close all figure windows
+clear all      
+close all       
 f = imread('assets/bonescan-front.tif');
 r = double(f);  % uint8 to double conversion
 k = mean2(r);   % find mean intensity of image
@@ -90,20 +93,24 @@ s = 1 ./ (1.0 + (k ./ (r + eps)) .^ E);
 g = uint8(255*s);
 imshowpair(f, g, "montage")
 ```
-_esp_ is a special Matlab constant which has the smallest value possible for a double precision floating point number on your computer.  Adding this to _r_ is necessary to avoid division by 0.
 
-Matlab function *_mean2_* computes the average value of a 2-D matrix.  Since the equation operates on floating numbers, we need to convert the image intensity, which is of type _uint8_ to type _double_ and store it in _r_.  We then compute the contrast stretched image by applying the stretch function element-by-element, and store the result in _s_.  
+- `eps` is a 'Floating-point relative accuracy', the smallest possible value for a double precision floating point. It is used to prevent dividing by 0
+- `double()` converts the image intensity from `uint8` to `double`, since the equation uses floating numbers. 
+- `mean2()` computes the average value of the 2D matrix
+- `s` stores the computation: the stretch function is applied per element of `r`
+	- These intensity values are normalized to range `[0.0 1.0]` in type `double`
+	- To scale it back to range `[0 255]`, we convert it back to `uint8()`
 
-The intensity values of s are normalized to the range of [0.0 1.0] and is in type _double_.  Finally we scale this back to the range [0 255] and covert back to _uint8_.
+![|400](img/bonescan_cs.jpg)
 
-Discuss the results with your classmates and record your observations in your logbook.
+The original image does not have very good contrast, and details are hard to see. 
+The contrast stretched image raises intensity of middle intensity pixels - allowing the bones to appear much whiter and easier to study, and it also exposes the muscles of the body which was not visible beforehand.
 
-## Task 3: Contrast Enhancement using Histogram
+## 3 - Contrast Enhancement with Histograms
 
-### PLotting the histogram of an image
+### Plotting an Image's Histogram
 
-Matlab has a built-in function _imhist_ to compute the histogram of an image and plot it.  Try this:
-
+Function `imhist()` computes a histogram of an image and plots it
 ```
 clear all       % clear all variable in workspace
 close all       % close all figure windows
@@ -112,39 +119,54 @@ imshow(f)
 figure          % open a new figure window
 imhist(f);      % calculate and plot the histogram
 ```
-It is clear that the intesity level of this image is very much squashed up between 70 to 140 in the range [0 255].  One attempt is to stretch the intensity between 0.3 and 0.55 of full scale (i.e. 255) with the built-in function _imadjust_ from the previous tasks. Try this:
+
+![|300](img/pollen.jpg)![|400](pollen_hist.jpg)
+
+- Intensity of this image is squashed between 70 and 140 in the `[0 255]` range
+
+Try stretching the intensity between range `[0.3 0.55]` of the full scale (255) using `imadjust()`
 
 ```
-close all
 g=imadjust(f,[0.3 0.55]);
 montage({f, g})     % display list of images side-by-side
 figure
 imhist(g);
+title('Stretching with imadjust')
 ```
-The histogram of the adjusted image is more spread out.  It is definitely an improvement but it is still not a good image.
 
-### Histogram, PDF and CDF
+![|400](img/pollen_imadj.jpg)
+![|400](img/pollen_imadj_h.jpg)
 
-Probability distribution function (PDF) is simply a normalised histogram.  Cumulative distribution function (CDF) is the integration of cumulative sum of the PDF.  Both PDF and CDF can be obtained as below.  Note that _numel_ returns the total number of elements in the matrix.  The following code computs the PDF and CDF for the adjusted image _g_, and plot them side-by-side in a single figure.  The function _subplot(m, n, p)_ specifies which subplot is to be used.
+- Intensities are now more spread out, but still not a very good image
+
+## Histogram, PDF, CDF
+
+- Probability dist function (PDF) is a normalised histogram
+- Cumulative dist function (CDF) integrates the cumulative sum of the PDF
 
 ```
 g_pdf = imhist(g) ./ numel(g);  % compute PDF
 g_cdf = cumsum(g_pdf);          % compute CDF
-close all                       % close all figure windows
-imshow(g);
+close all                       
+imshow(g);                      % note that this is the imadjusted func
 subplot(1,2,1)                  % plot 1 in a 1x2 subplot
 plot(g_pdf)
 subplot(1,2,2)                  % plot 2 in a 1x2 subplot
 plot(g_cdf)
 ```
 
-### Histogram Equalization
+- `numel` returns total number of elements in the matrix
+- `subplot(m,n,p)` specifies the subplot to use
 
-To perform histogram equalization, the CDF is used as the intensity transformation function.  The CDF plot made earlier is bare and axes are not labelled nor scaled.  The following code replot the CDF and make it looks pretty.  It is also an opportunity to demonstrate some of Matlab's plotting capabilities.
+![|600](img/pollen_df.jpg)
 
+## Histogram Equalization
+
+Histogram equalization is performed by using CDF as the intensity transformation function
+
+Replot CDF to make it look better:
 ```
-x = linspace(0, 1, 256);    % x has 256 values equally spaced
-                            %  .... between 0 and 1
+x = linspace(0, 1, 256);    % x has 256 values equally spaced between 0 and 1
 figure
 plot(x, g_cdf)
 axis([0 1 0 1])             % graph x and y range is 0 to 1
@@ -155,8 +177,9 @@ ylabel('Output intensity values', 'fontsize', 9)
 title('Transformation function', 'fontsize', 12)
 ```
 
-The Matlab function _histeq_ computes the CDF of an image, and use this as the intensity transformation function to flatten the histogram.  The following code will perform this function and provide plots of all three images and their histogram.
+![|400](img/pollen_cdf.jpg)
 
+Apply CDF to the image:
 ```
 h = histeq(g,256);              % histogram equalize g
 close all
@@ -167,62 +190,101 @@ subplot(1,3,2); imhist(g);
 subplot(1,3,3); imhist(h);
 ```
 
-## Task 4 - Noise reduction with lowpass filter
+- `histeq()` computes CDF and uses it as intensity transformation to flatten the histogram.
 
-In Lecture 5, we consider a variety of special filter kernels, including: Averaging (box), Gaussian, Laplacian and Sobel. In this task, you will explore the effect of each of this on an image.  In this task, you will explore two type of smoothing filter - the moveing average (box) filter and the Gaussian filter.
+See below for all three versions and their plots
+![](img/pollen_all.jpg)
 
-Before filtering operation can be performed, we need to define our filter kernel.  Matlab provides a function called _fspecial_, which returns different types of filter kernels.  The table below shows the types of kernels that can generated.
+![](img/pollen_allhist.jpg)
 
-<p align="center"> <img src="assets/fspecial.jpg" /> </p><BR>
+The final version is very clear and nicely contrasted.
 
-Import an X-ray image of a printed circuit board.
+## 4 - Lowpass Filter Noise Reduction
 
-```
-clear all
-close all
-f = imread('assets/noisyPCB.jpg');
-imshow(f)
-```
-The image is littered with noise which is clearly visible.  We shall attempt to reduce the noise by using Box and the Gaussian filters.
+Exploring the effects of:
+- Special Filter Kernel like Averaging (box), Gaussian, Laplacian, Sobel
+- Smoothing filters: Moving average (box) filter and Gaussian filter
 
-Use the function _fspecial_ to produce a 9x9 averaging filter kernel _ and a 7 x 7 Gaussian kernel with sigma = 0.5  as shown below:
+Using this noisy PCB x-ray image
+
+![|300](img/pcb.jpg)
+
+First define filter kernel, provided by `fspecial`
+
+![|500](assets/fspecial.jpg)
+
+Producing box and gaussian filters:
 
 ```
 w_box = fspecial('average', [9 9])
 w_gauss = fspecial('Gaussian', [7 7], 1.0)
 ```
-Note that the coefficients are scaled in such a way that they sum to 1.
+- `w_box`: 9x9 averaging filter kernel
+- `w_gauss`: 7x7 Gaussian kernel with $\sigma = 0.5$ 
+- note the coefficients are scaled such that they sum to 1
 
-Now, apply the filter to the image with:
+The matrices look like this:
+![](img/box_filt.png)
+![](img/gauss_filt.png)
+
+Apply the filter:
 ```
 g_box = imfilter(f, w_box, 0);
 g_gauss = imfilter(f, w_gauss, 0);
 figure
 montage({f, g_box, g_gauss})
 ```
-Comment on the results.  
 
->Test yourself: Explore various kernel size and sigma value for these two filters. Comment on the trade-off between the choice of these parameters and the effect on the image.
+![|500](img/pcb_comp.jpg)
 
-## Task 5 - Median Filtering
+Gaussian gives a clearer image while box seems to be blurry
 
-In both cases with Average and Gaussian filters, noise reduction is companied by reducing in the sharpness of the image.  Median filter provides a better solution if sharpness is to be preserved.  Matlab provides the function _medfilt2(I, [m n], padopt)_ for such an operation.  [m n] defines the kernel dimension. _padopt_ specifies the padding option at the boundaries.  Default is 'zero', which means it is zero-padded.
+TBD | Test yourself: Explore various kernel size and sigma value for these two filters. Comment on the trade-off between the choice of these parameters and the effect on the image.
 
-Try this:
+## 5 - Median Filtering
+
+With both filters, noise reduction reduces the sharpness of the image.
+Median filter is useful as it preserves sharpness.
+
 ```
 g_median = medfilt2(f, [7 7], 'zero');
 figure; montage({f, g_median})
 ```
-Comment on the results.
+- `medfilt2(l,[m n],padopt)` 
+	- `[m n]` defines kernel dimension
+	- `padopt` specifies padding option at the boundaries (default 0 padding)
 
-## Task 6 - Sharpening the image with Laplacian, Sobel and Unsharp filters
+![|500](img/pcb_median.jpg)
 
-Now that you are familiar with the Matlab functions _fspecial_ and _imfilter_, explore with various filter kernels to sharpen the moon image stored in the file _moon.tif_. The goal is to make the moon photo sharper so that the craters can be observed better.
+The median filtered image has lowpass applied, making the high intensity values seem more obvious.
 
-## Task 7 - Test yourself Challenges
+## 6 - Sharpening with Other Filters
 
-* Improve the contrast of a lake and tree image store in file _lake&tree.png_ use any technique you have learned in this lab. Compare your results with others in the class.
+- Laplacian: 3x3 filter shaped by value alpha in range `[0 1]`, default is 0.5
+- Sobel: 3x3 mask, sv, that approximates a vertical gradient. 
+	- A horizontal gradient is created by transposing sv' = sh
+- Unsharp: 3x3 filter shaped by alpha, which is >0 and =< 1, default being 0.2.
 
-* Use the Sobel filter in combination with any other techniques, find the edge of the circles in the image file _circles.tif_.  You are encouraged to discuss and work with your classmates and compare results.
+```
+clear all
+close all
+f = imread('assets/moon.tif');
+imshow(f)
+title('Original Moon Image')
 
-* _office.jpg_ is a colour photograph taken of an office with badd exposure.  Use whatever means at your disposal to improve the lighting and colour of this photo.
+w_lapla = fspecial('laplacian', 0.5); % 0.5 is the default alpha
+w_sobel = fspecial('sobel');
+w_unsharp = fspecial('unsharp', 0.2); % 0.2 is the default alpha
+
+g_lapla = imfilter(f, w_lapla, 0);
+g_sobel = imfilter(f, w_sobel, 0);
+g_unsharp = imfilter(f, w_unsharp, 0);
+
+figure;
+montage({f,g_lapla,g_sobel,g_unsharp})
+title('Original vs Laplacian vs Sobel vs Unsharp')
+```
+
+![](img/moon_all.jpg)
+
+## 7 - Test Yourself Challenges 
